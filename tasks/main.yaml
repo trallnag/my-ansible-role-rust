@@ -1,0 +1,71 @@
+# ------------------------------------------------------------------------------
+
+
+- name: Install
+  ansible.builtin.shell: |
+    if [ ! -d ~/.cargo ]; then
+      curl --silent --show-error --fail https://sh.rustup.rs | sh -s -- --quiet --no-modify-path -y
+    fi
+  changed_when: false
+
+
+# ------------------------------------------------------------------------------
+# Bash
+
+
+- name: "bash : Add block to {{ bash_profile_middle }}"
+  ansible.builtin.blockinfile:
+    path: "{{ bash_profile_middle }}"
+    marker: "# {mark} :: ANSIBLE MANAGED BLOCK :: {{ role_name }}"
+    block: |
+      export PATH=$PATH:$HOME/.cargo/bin
+
+- name: "bash : Add block to {{ bash_bashrc_middle }}"
+  ansible.builtin.blockinfile:
+    path: "{{ bash_bashrc_middle }}"
+    marker: "# {mark} :: ANSIBLE MANAGED BLOCK :: {{ role_name }}"
+    block: |
+      source $HOME/.cargo/env
+
+- name: "bash : Create and place completion scripts for cargo and rustup"
+  ansible.builtin.shell: |
+    export PATH=$PATH:$HOME/.cargo/bin
+    . $HOME/.cargo/env
+    
+    dir=$HOME/.local/share/bash-completion/completions
+
+    rustup completions bash cargo > $dir/cargo.bash
+    rustup completions bash > $dir/rustup.bash
+  changed_when: false
+
+
+# ------------------------------------------------------------------------------
+# Zsh
+
+
+- name: "zsh : Add block to {{ zsh_zprofile_middle }}"
+  ansible.builtin.blockinfile:
+    path: "{{ zsh_zprofile_middle }}"
+    marker: "# {mark} :: ANSIBLE MANAGED BLOCK :: {{ role_name }}"
+    block: |
+      path=($path $HOME/.cargo/bin)
+
+- name: "zsh : Add block to {{ zsh_zshrc_middle }}"
+  blockinfile:
+    path: "{{ zsh_zshrc_middle }}"
+    marker: "# {mark} :: ANSIBLE MANAGED BLOCK :: {{ role_name }}"
+    block: |
+      source $HOME/.cargo/env
+
+- name: "zsh : Create and place completion scripts for cargo and rustup"
+  ansible.builtin.shell: |
+    export PATH=$PATH:{{ ansible_env.HOME }}/.cargo/bin
+    . {{ ansible_env.HOME }}/.cargo/env
+
+    rustup completions zsh cargo > /usr/local/share/zsh/site-functions/_cargo
+    rustup completions zsh > /usr/local/share/zsh/site-functions/_rustup
+  changed_when: false
+  become: true
+
+
+# ------------------------------------------------------------------------------
