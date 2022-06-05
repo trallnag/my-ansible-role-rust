@@ -11,5 +11,4 @@ Role that installs and configures the Rust development chain.
 
 Must be done manually outside of Ansible.
 
-    rustup self update
-    rustup update
+    rustup self update && rustup update

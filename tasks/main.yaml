@@ -5,8 +5,10 @@
   ansible.builtin.shell: |
     if [ ! -d ~/.cargo ]; then
       curl --silent --show-error --fail https://sh.rustup.rs | sh -s -- --quiet --no-modify-path -y
+      echo status=changed
     fi
-  changed_when: false
+  register: task
+  changed_when: "'status=changed' in task.stdout"
 
 
 # ------------------------------------------------------------------------------
@@ -31,12 +33,20 @@
   ansible.builtin.shell: |
     export PATH=$PATH:$HOME/.cargo/bin
     . $HOME/.cargo/env
-    
-    dir=$HOME/.local/share/bash-completion/completions
 
-    rustup completions bash cargo > $dir/cargo.bash
-    rustup completions bash > $dir/rustup.bash
-  changed_when: false
+    fcargo=$HOME/.local/share/bash-completion/completions/cargo.bash
+    frustup=$HOME/.local/share/bash-completion/completions/rustup.bash    
+
+    hash_before=$( ( cat $fcargo $frustup || true ) | sha256sum )
+
+    rustup completions bash cargo > $fcargo
+    rustup completions bash > $frustup
+
+    hash_after=$( ( cat $fcargo $frustup || true ) | sha256sum )
+
+    if [ "$hash_before" != "$hash_after" ]; then echo status=changed; fi
+  register: task
+  changed_when: "'status=changed' in task.stdout"
 
 
 # ------------------------------------------------------------------------------
@@ -59,13 +69,22 @@
 
 - name: "zsh : Create and place completion scripts for cargo and rustup"
   ansible.builtin.shell: |
-    export PATH=$PATH:{{ ansible_env.HOME }}/.cargo/bin
-    . {{ ansible_env.HOME }}/.cargo/env
+    export PATH=$PATH:$HOME/.cargo/bin
+    . $HOME/.cargo/env
 
-    rustup completions zsh cargo > /usr/local/share/zsh/site-functions/_cargo
-    rustup completions zsh > /usr/local/share/zsh/site-functions/_rustup
-  changed_when: false
-  become: true
+    fcargo={{ zsh_completions }}/_cargo
+    frustup={{ zsh_completions }}/_rustup
+
+    hash_before=$( ( cat $fcargo $frustup || true ) | sha256sum )
+
+    rustup completions zsh cargo > $fcargo
+    rustup completions zsh > $frustup
+
+    hash_after=$( ( cat $fcargo $frustup || true ) | sha256sum )
+
+    if [ "$hash_before" != "$hash_after" ]; then echo status=changed; fi
+  register: task
+  changed_when: "'status=changed' in task.stdout"
 
 
 # ------------------------------------------------------------------------------
